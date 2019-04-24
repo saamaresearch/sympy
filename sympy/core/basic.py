@@ -99,6 +99,11 @@ class Basic(with_metaclass(ManagedProperties)):
     is_MatAdd = False
     is_MatMul = False
 
+    # Set to track Add/Mul/Div etc. for Exprs to make expand faster
+    # Allows easy determination of which hints are applicable
+
+    internal_classes = set()
+
     def __new__(cls, *args):
         obj = object.__new__(cls)
         obj._assumptions = cls.default_assumptions

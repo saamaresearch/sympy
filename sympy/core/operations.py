@@ -23,15 +23,17 @@ class AssocOp(Basic):
 
     # for performance reason, we don't let is_commutative go to assumptions,
     # and keep it right here
-    __slots__ = ['is_commutative']
+    __slots__ = ["is_commutative"]
 
     @cacheit
     def __new__(cls, *args, **options):
+
         from sympy import Order
+
         args = list(map(_sympify, args))
         args = [a for a in args if a is not cls.identity]
 
-        evaluate = options.get('evaluate')
+        evaluate = options.get("evaluate")
         if evaluate is None:
             evaluate = global_evaluate[0]
         if not evaluate:
@@ -48,6 +50,7 @@ class AssocOp(Basic):
         is_commutative = not nc_part
         obj = cls._from_args(c_part + nc_part, is_commutative)
         obj = cls._exec_constructor_postprocessors(obj)
+        obj.internal_classes.add(cls)
 
         if order_symbols is not None:
             return Order(obj, *order_symbols)
@@ -109,7 +112,7 @@ class AssocOp(Basic):
            self is non-commutative and kwarg `reeval=False` has not been
            passed.
         """
-        if kwargs.pop('reeval', True) and self.is_commutative is False:
+        if kwargs.pop("reeval", True) and self.is_commutative is False:
             is_commutative = None
         else:
             is_commutative = self.is_commutative
@@ -172,6 +175,7 @@ class AssocOp(Basic):
         # make sure expr is Expr if pattern is Expr
         from .expr import Add, Expr
         from sympy import Mul
+
         if isinstance(self, Expr) and not isinstance(expr, Expr):
             return None
 
@@ -186,9 +190,12 @@ class AssocOp(Basic):
         # eliminate exact part from pattern: (2+a+w1+w2).matches(expr) -> (w1+w2).matches(expr-a-2)
         from .function import WildFunction
         from .symbol import Wild
-        wild_part, exact_part = sift(self.args, lambda p:
-            p.has(Wild, WildFunction) and not expr.has(p),
-            binary=True)
+
+        wild_part, exact_part = sift(
+            self.args,
+            lambda p: p.has(Wild, WildFunction) and not expr.has(p),
+            binary=True,
+        )
         if not exact_part:
             wild_part = list(ordered(wild_part))
         else:
@@ -225,9 +232,15 @@ class AssocOp(Basic):
                     # make e**i look like Mul
                     if expr.is_Pow and expr.exp.is_Integer:
                         if expr.exp > 0:
-                            expr = Mul(*[expr.base, expr.base**(expr.exp - 1)], evaluate=False)
+                            expr = Mul(
+                                *[expr.base, expr.base ** (expr.exp - 1)],
+                                evaluate=False
+                            )
                         else:
-                            expr = Mul(*[1/expr.base, expr.base**(expr.exp + 1)], evaluate=False)
+                            expr = Mul(
+                                *[1 / expr.base, expr.base ** (expr.exp + 1)],
+                                evaluate=False
+                            )
                         i += 1
                         continue
 
@@ -236,14 +249,15 @@ class AssocOp(Basic):
                     c, e = expr.as_coeff_Mul()
                     if abs(c) > 1:
                         if c > 0:
-                            expr = Add(*[e, (c - 1)*e], evaluate=False)
+                            expr = Add(*[e, (c - 1) * e], evaluate=False)
                         else:
-                            expr = Add(*[-e, (c + 1)*e], evaluate=False)
+                            expr = Add(*[-e, (c + 1) * e], evaluate=False)
                         i += 1
                         continue
 
                     # try collection on non-Wild symbols
                     from sympy.simplify.radsimp import collect
+
                     was = expr
                     did = set()
                     for w in reversed(wild_part):
@@ -262,12 +276,14 @@ class AssocOp(Basic):
 
     def _has_matcher(self):
         """Helper for .has()"""
+
         def _ncsplit(expr):
             # this is not the same as args_cnc because here
             # we don't assume expr is a Mul -- hence deal with args --
             # and always return a set.
-            cpart, ncpart = sift(expr.args,
-                lambda arg: arg.is_commutative is True, binary=True)
+            cpart, ncpart = sift(
+                expr.args, lambda arg: arg.is_commutative is True, binary=True
+            )
             return set(cpart), ncpart
 
         c, nc = _ncsplit(self)
@@ -285,9 +301,10 @@ class AssocOp(Basic):
                         return True
                     elif len(nc) <= len(_nc):
                         for i in range(len(_nc) - len(nc) + 1):
-                            if _nc[i:i + len(nc)] == nc:
+                            if _nc[i : i + len(nc)] == nc:
                                 return True
             return False
+
         return is_in
 
     def _eval_evalf(self, prec):
@@ -306,13 +323,18 @@ class AssocOp(Basic):
         from .mul import Mul
         from .symbol import Symbol
         from .function import AppliedUndef
+
         if isinstance(self, (Mul, Add)):
             x, tail = self.as_independent(Symbol, AppliedUndef)
             # if x is an AssocOp Function then the _evalf below will
             # call _eval_evalf (here) so we must break the recursion
-            if not (tail is self.identity or
-                    isinstance(x, AssocOp) and x.is_Function or
-                    x is self.identity and isinstance(tail, AssocOp)):
+            if not (
+                tail is self.identity
+                or isinstance(x, AssocOp)
+                and x.is_Function
+                or x is self.identity
+                and isinstance(tail, AssocOp)
+            ):
                 # here, we have a number so we just call to _evalf with prec;
                 # prec is not the same as n, it is the binary precision so
                 # that's why we don't call to evalf.
