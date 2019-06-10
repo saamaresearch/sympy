@@ -663,7 +663,7 @@ def symbols(names, **args):
 
             if ":" not in name:
                 symbol = cls(literal(name), **args)
-                symbol.internal_classes = set()
+                symbol.internal_classes.clear()
                 result.append(symbol)
                 continue
 
